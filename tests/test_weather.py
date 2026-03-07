@@ -1,6 +1,7 @@
 import pytest
 from main import fetch_weather
 
+
 @pytest.mark.asyncio
 async def test_fetch_weather_success(mocker):
     # On simule la réponse de l'API
@@ -12,17 +13,18 @@ async def test_fetch_weather_success(mocker):
             "condition": {"text": "Ensoleillé"},
             "temp_c": 20.5,
             "humidity": 45,
-            "wind_kph": 15
-        }
+            "wind_kph": 15,
+        },
     }
-    
+
     mocker.patch("httpx.AsyncClient.get", return_value=mock_response)
 
     result = await fetch_weather("Paris", "France")
-    
+
     assert "Paris" in result
     assert "20.5°C" in result
     assert "Ensoleillé" in result
+
 
 @pytest.mark.asyncio
 async def test_fetch_weather_error(mocker):
