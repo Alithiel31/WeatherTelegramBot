@@ -1,0 +1,35 @@
+name: Bot Weather CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout du code
+      uses: actions/checkout@v4
+
+    - name: Installation de Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Installation des dépendances
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio pytest-mock black flake8
+
+    - name: Vérification du formatage (Black)
+      run: black --check .
+
+    - name: Analyse statique (Flake8)
+      run: flake8 . --count --max-line-length=88 --statistics
+
+    - name: Exécution des tests (Pytest)
+      run: pytest

@@ -1,3 +1,10 @@
 python-telegram-bot
-requests
+httpx
 python-dotenv
+
+flake8
+black
+
+pytest
+pytest-asyncio
+pytest-mock
