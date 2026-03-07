@@ -12,7 +12,7 @@ from telegram.ext import (
     ConversationHandler,
 )
 
-# 1. Configuration des logs pour une meilleure visibilité des erreurs et du flux d'exécution
+# 1. Configuration des logs
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -32,7 +32,10 @@ async def fetch_weather(city: str, country: str):
     Interroge l'API WeatherAPI de manière asynchrone.
     """
     query = f"{city},{country}"
-    url = f"http://api.weatherapi.com/v1/current.json?key={WEATHER_API_KEY}&q={query}&lang=fr"
+    url = (
+        f"http://api.weatherapi.com/v1/current.json"
+        f"?key={WEATHER_API_KEY}&q={query}&lang=fr"
+    )
 
     # On utilise un gestionnaire de contexte 'async with' pour le client HTTP
     async with httpx.AsyncClient() as client:
@@ -85,7 +88,8 @@ async def get_country(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Enregistre le pays et demande la ville."""
     context.user_data["country"] = update.message.text
     await update.message.reply_text(
-        f"🏙️ Très bien ! Quelle ville de *{update.message.text}* voulez-vous consulter ?",
+        f"🏙️ Très bien ! Quelle ville de *{update.message.text}*"
+        f"voulez-vous consulter ?",
         parse_mode="Markdown",
     )
     return VILLE
