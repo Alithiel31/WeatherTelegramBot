@@ -32,4 +32,6 @@ jobs:
       run: flake8 . --count --max-line-length=88 --statistics
 
     - name: Exécution des tests (Pytest)
-      run: pytest
+      run: |
+        export PYTHONPATH=$PYTHONPATH:.
+        pytest
