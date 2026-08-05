@@ -1,12 +1,12 @@
 python-telegram-bot[job-queue]~=22.8
 httpx~=0.28.1
 python-dotenv~=1.2.2
-cachetools~=6.0.0
+cachetools~=7.1.7
 
 flake8~=7.3.0
 black~=26.5.1
-mypy~=1.14.0
-types-cachetools~=7.0.0
+mypy~=2.3.0
+types-cachetools~=6.0.0
 
 pytest~=9.1.1
 pytest-asyncio~=1.4.0
