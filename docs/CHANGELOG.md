@@ -5,16 +5,35 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Added
-
-- Bilingual documentation suite: `README.fr.md`, `CONTRIBUTING.md`/`CONTRIBUTING.fr.md`, `Troubleshooting.md`/`Troubleshooting.fr.md`, this `CHANGELOG.md`
-- Architecture diagram (Mermaid) and table of contents in the README
-- `LICENSE` file (MIT)
-
 ### To do
 
 - Consider structured/JSON logging to make the periodic metrics snapshot easier to scrape from outside the container
 - Consider exposing the in-memory metrics over an HTTP endpoint (or Prometheus format) instead of log-only, if the bot ever needs external monitoring
+- Cover `/meteo` and `/prevision` in `Troubleshooting.md` if a config pitfall shows up around `FORECAST_DAYS`
+
+## [0.6.0] - 2026-08-05
+
+### Added
+
+- `/meteo <ville>[, <pays>]`: one-shot current weather, independent of the `/start` step-by-step conversation (usable even while another chat has a conversation in progress, thanks to a dedicated handler group)
+- `/prevision <ville>[, <pays>]`: multi-day forecast, via a new `fetch_forecast` in `weather_bot/services/weather_api.py`
+- `FORECAST_DAYS` setting (default 3, the free-tier WeatherAPI limit)
+
+## [0.5.1] - 2026-08-05
+
+### Changed
+
+- Dependency updates (Dependabot): `mypy` ~=1.14.0 → ~=2.3.0, `cachetools` ~=6.0.0 → ~=7.1.7, `types-cachetools` ~=6.0.0 → ~=7.0.0, `actions/checkout` 4 → 7, `actions/setup-python` 4 → 7, `docker/build-push-action` 6 → 7
+
+## [0.5.0] - 2026-08-05
+
+Documentation release: bilingual docs added (English default, French mirror), reorganized under `docs/` alongside a root `README.md`/`README.fr.md`. No change to the bot itself.
+
+### Added
+
+- `README.fr.md`, `docs/CONTRIBUTING.md`/`docs/CONTRIBUTING.fr.md`, `docs/Troubleshooting.md`/`docs/Troubleshooting.fr.md`, this `CHANGELOG.md` (moved to `docs/`)
+- Architecture diagram (Mermaid) and table of contents in the README
+- `LICENSE` file (MIT)
 
 ## [0.4.0] - 2026-08-05
 
