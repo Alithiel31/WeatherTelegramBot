@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import unicodedata
 from urllib.parse import quote
 
 import httpx
@@ -29,9 +30,21 @@ def _cache_key(city: str, country: str) -> tuple[str, str]:
     return (city.lower().strip(), country.lower().strip())
 
 
+def _strip_accents(text: str) -> str:
+    """Retire les diacritiques (accents) d'une chaîne.
+
+    WeatherAPI résout mal les noms de lieux accentués : une recherche pour
+    "Montréal" peut renvoyer un lieu incorrect alors que "Montreal" (sans
+    accent) fonctionne très bien. On envoie donc toujours une version ASCII
+    à l'API, tout en gardant le texte original tel quel pour l'affichage."""
+    normalized = unicodedata.normalize("NFKD", text)
+    return "".join(c for c in normalized if not unicodedata.combining(c))
+
+
 def _build_query(city: str, country: str) -> str:
     """Construit le paramètre `q` de WeatherAPI. Le pays est optionnel : sans lui,
     WeatherAPI se contente de résoudre la ville la plus probable."""
+    city, country = _strip_accents(city), _strip_accents(country)
     location = f"{city},{country}" if country else city
     return quote(location)
 

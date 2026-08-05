@@ -117,6 +117,30 @@ async def test_fetch_weather_encodes_special_characters(mocker):
 
 
 @pytest.mark.asyncio
+async def test_fetch_weather_strips_accents_from_query(mocker):
+    """La requête envoyée à WeatherAPI doit être désaccentuée (ex: Montréal ->
+    Montreal), car l'API résout mal les noms de lieux accentués."""
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "location": {"name": "Montreal", "country": "Canada"},
+        "current": {
+            "condition": {"text": "Ensoleillé"},
+            "temp_c": 20.5,
+            "humidity": 45,
+            "wind_kph": 15,
+        },
+    }
+    mock_get = mocker.patch("httpx.AsyncClient.get", return_value=mock_response)
+
+    await fetch_weather("Montréal", "Canada")
+
+    called_url = mock_get.call_args.args[0]
+    assert "Montr%C3%A9al" not in called_url
+    assert "q=Montreal%2CCanada" in called_url
+
+
+@pytest.mark.asyncio
 async def test_fetch_weather_cache_avoids_second_call(mocker):
     mock_response = mocker.Mock()
     mock_response.status_code = 200
