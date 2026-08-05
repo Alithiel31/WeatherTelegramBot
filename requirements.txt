@@ -1,10 +1,10 @@
-python-telegram-bot
-httpx
-python-dotenv
+python-telegram-bot~=22.8
+httpx~=0.28.1
+python-dotenv~=1.2.2
 
-flake8
-black
+flake8~=7.3.0
+black~=26.5.1
 
-pytest
-pytest-asyncio
-pytest-mock
+pytest~=9.1.1
+pytest-asyncio~=1.4.0
+pytest-mock~=3.15.1

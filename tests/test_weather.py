@@ -1,5 +1,12 @@
 import pytest
-from main import fetch_weather
+from weather_api import fetch_weather, _cache
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    _cache.clear()
+    yield
+    _cache.clear()
 
 
 @pytest.mark.asyncio
@@ -35,3 +42,66 @@ async def test_fetch_weather_error(mocker):
 
     result = await fetch_weather("VilleInexistante", "PaysFaux")
     assert "Lieu non trouvé" in result
+
+
+@pytest.mark.asyncio
+async def test_fetch_weather_uses_https(mocker):
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "location": {"name": "Tokyo", "country": "Japan"},
+        "current": {
+            "condition": {"text": "Nuageux"},
+            "temp_c": 18.0,
+            "humidity": 60,
+            "wind_kph": 10,
+        },
+    }
+    mock_get = mocker.patch("httpx.AsyncClient.get", return_value=mock_response)
+
+    await fetch_weather("Tokyo", "Japan")
+
+    called_url = mock_get.call_args.args[0]
+    assert called_url.startswith("https://")
+
+
+@pytest.mark.asyncio
+async def test_fetch_weather_encodes_special_characters(mocker):
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "location": {"name": "New York", "country": "USA"},
+        "current": {
+            "condition": {"text": "Clear"},
+            "temp_c": 22.0,
+            "humidity": 40,
+            "wind_kph": 5,
+        },
+    }
+    mock_get = mocker.patch("httpx.AsyncClient.get", return_value=mock_response)
+
+    await fetch_weather("New York", "USA")
+
+    called_url = mock_get.call_args.args[0]
+    assert " " not in called_url
+
+
+@pytest.mark.asyncio
+async def test_fetch_weather_cache_avoids_second_call(mocker):
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "location": {"name": "Paris", "country": "France"},
+        "current": {
+            "condition": {"text": "Ensoleillé"},
+            "temp_c": 20.5,
+            "humidity": 45,
+            "wind_kph": 15,
+        },
+    }
+    mock_get = mocker.patch("httpx.AsyncClient.get", return_value=mock_response)
+
+    await fetch_weather("Paris", "France")
+    await fetch_weather("Paris", "France")
+
+    assert mock_get.call_count == 1
