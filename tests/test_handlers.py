@@ -8,6 +8,8 @@ from weather_bot.handlers import (
     get_city_and_weather,
     cancel,
     timeout,
+    meteo_command,
+    prevision_command,
 )
 from weather_bot.services.rate_limiter import _requests
 
@@ -29,9 +31,10 @@ def make_update(mocker, text=None, chat_id=123):
     return update
 
 
-def make_context(mocker, user_data=None):
+def make_context(mocker, user_data=None, args=None):
     context = mocker.Mock()
     context.user_data = user_data if user_data is not None else {}
+    context.args = args
     context.bot = mocker.Mock()
     context.bot.send_chat_action = mocker.AsyncMock()
     return context
@@ -160,3 +163,110 @@ async def test_timeout_ends_conversation(mocker):
 
     update.message.reply_text.assert_awaited_once()
     assert state == ConversationHandler.END
+
+
+@pytest.mark.asyncio
+async def test_meteo_command_returns_weather_directly(mocker):
+    update = make_update(mocker)
+    context = make_context(mocker, args=["Paris,", "France"])
+
+    fetch_mock = mocker.patch(
+        "weather_bot.handlers.fetch_weather",
+        mocker.AsyncMock(return_value="🌤️ Ensoleillé"),
+    )
+
+    await meteo_command(update, context)
+
+    fetch_mock.assert_awaited_once_with("Paris", "France")
+    context.bot.send_chat_action.assert_awaited_once()
+    update.message.reply_text.assert_awaited_once_with(
+        "🌤️ Ensoleillé", parse_mode="Markdown"
+    )
+
+
+@pytest.mark.asyncio
+async def test_meteo_command_without_country(mocker):
+    update = make_update(mocker)
+    context = make_context(mocker, args=["Tokyo"])
+
+    fetch_mock = mocker.patch(
+        "weather_bot.handlers.fetch_weather",
+        mocker.AsyncMock(return_value="🌤️ Nuageux"),
+    )
+
+    await meteo_command(update, context)
+
+    fetch_mock.assert_awaited_once_with("Tokyo", "")
+
+
+@pytest.mark.asyncio
+async def test_meteo_command_rejects_missing_args(mocker):
+    update = make_update(mocker)
+    context = make_context(mocker, args=[])
+
+    fetch_mock = mocker.patch(
+        "weather_bot.handlers.fetch_weather",
+        mocker.AsyncMock(return_value="🌤️ Ensoleillé"),
+    )
+
+    await meteo_command(update, context)
+
+    fetch_mock.assert_not_awaited()
+    assert "Utilisation" in update.message.reply_text.call_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_meteo_command_blocks_after_rate_limit(mocker):
+    fetch_mock = mocker.patch(
+        "weather_bot.handlers.fetch_weather",
+        mocker.AsyncMock(return_value="🌤️ Ensoleillé"),
+    )
+
+    for _ in range(RATE_LIMIT_MAX_REQUESTS):
+        update = make_update(mocker, chat_id=888)
+        context = make_context(mocker, args=["Paris"])
+        await meteo_command(update, context)
+
+    fetch_mock.reset_mock()
+
+    blocked_update = make_update(mocker, chat_id=888)
+    blocked_context = make_context(mocker, args=["Paris"])
+    await meteo_command(blocked_update, blocked_context)
+
+    fetch_mock.assert_not_awaited()
+    assert "Trop de requêtes" in blocked_update.message.reply_text.call_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_prevision_command_returns_forecast_directly(mocker):
+    update = make_update(mocker)
+    context = make_context(mocker, args=["Paris,", "France"])
+
+    fetch_mock = mocker.patch(
+        "weather_bot.handlers.fetch_forecast",
+        mocker.AsyncMock(return_value="📅 Prévisions"),
+    )
+
+    await prevision_command(update, context)
+
+    fetch_mock.assert_awaited_once_with("Paris", "France")
+    context.bot.send_chat_action.assert_awaited_once()
+    update.message.reply_text.assert_awaited_once_with(
+        "📅 Prévisions", parse_mode="Markdown"
+    )
+
+
+@pytest.mark.asyncio
+async def test_prevision_command_rejects_missing_args(mocker):
+    update = make_update(mocker)
+    context = make_context(mocker, args=None)
+
+    fetch_mock = mocker.patch(
+        "weather_bot.handlers.fetch_forecast",
+        mocker.AsyncMock(return_value="📅 Prévisions"),
+    )
+
+    await prevision_command(update, context)
+
+    fetch_mock.assert_not_awaited()
+    assert "Utilisation" in update.message.reply_text.call_args.args[0]

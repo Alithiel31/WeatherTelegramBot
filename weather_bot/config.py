@@ -28,6 +28,10 @@ MAX_INPUT_LENGTH = int(os.getenv("MAX_INPUT_LENGTH", "60"))
 FETCH_MAX_RETRIES = int(os.getenv("FETCH_MAX_RETRIES", "3"))
 FETCH_RETRY_BACKOFF_BASE = float(os.getenv("FETCH_RETRY_BACKOFF_BASE", "0.5"))
 
+# Nombre de jours couverts par la commande /prevision (WeatherAPI : 3 jours
+# max sur les offres gratuites)
+FORECAST_DAYS = int(os.getenv("FORECAST_DAYS", "3"))
+
 # Intervalle (en secondes) entre deux publications des statistiques dans les logs
 METRICS_LOG_INTERVAL_SECONDS = int(os.getenv("METRICS_LOG_INTERVAL_SECONDS", "3600"))
 

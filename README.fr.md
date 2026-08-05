@@ -61,8 +61,9 @@ flowchart LR
 ## Fonctionnalités
 
 - Données en temps réel : récupère la météo actuelle via WeatherAPI (HTTPS).
+- Prévisions multi-jours : `/prevision` renvoie une prévision sur `FORECAST_DAYS` jours (3 par défaut).
 - Localisé : descriptions météo fournies en français (lang=fr).
-- Simple d'utilisation : interface textuelle simple (pas de commandes complexes).
+- Simple d'utilisation : interface textuelle simple (pas de commandes complexes), plus des commandes directes (`/meteo`, `/prevision`) pour une consultation rapide.
 - Gestion robuste des erreurs : timeouts API, noms de ville invalides, clés API invalides (401/403), et limites de débit du fournisseur (429) gérés proprement.
 - Retry automatique avec backoff exponentiel sur les erreurs réseau transitoires.
 - Rate limiting par chat pour prévenir les abus et maîtriser les coûts d'API.
@@ -120,6 +121,7 @@ RATE_LIMIT_WINDOW_SECONDS=60        # taille de la fenêtre glissante du rate li
 MAX_INPUT_LENGTH=60                 # nb max de caractères acceptés pour pays/ville
 FETCH_MAX_RETRIES=3                 # nb de tentatives sur erreurs réseau transitoires
 FETCH_RETRY_BACKOFF_BASE=0.5        # délai de base (secondes) du backoff exponentiel
+FORECAST_DAYS=3                     # nb de jours couverts par la commande /prevision
 METRICS_LOG_INTERVAL_SECONDS=3600   # fréquence de journalisation des métriques
 HEARTBEAT_FILE=/tmp/bot_heartbeat   # fichier heartbeat utilisé par le healthcheck Docker
 HEARTBEAT_INTERVAL_SECONDS=30       # fréquence de mise à jour du heartbeat
@@ -142,6 +144,11 @@ Comment interagir avec le bot :
 2. Appuyez sur /start.
 3. Tapez un pays, puis un nom de ville (ex : France → Paris).
 4. Recevez instantanément un rapport météo formaté !
+
+Commandes rapides (sans dialogue, utilisables même en pleine conversation) :
+
+- `/meteo <ville>[, <pays>]` — météo actuelle en un seul message. Le pays est optionnel (ex : `/meteo Paris, France` ou simplement `/meteo Tokyo`).
+- `/prevision <ville>[, <pays>]` — prévision sur les `FORECAST_DAYS` prochains jours (3 par défaut).
 
 ## Docker
 

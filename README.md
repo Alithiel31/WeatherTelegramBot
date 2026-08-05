@@ -61,8 +61,9 @@ flowchart LR
 ## Features
 
 - Real-time Data: Fetches current weather via WeatherAPI (HTTPS).
+- Multi-day Forecast: `/prevision` returns a forecast covering `FORECAST_DAYS` (3 by default).
 - Localized: Weather descriptions provided in French (lang=fr).
-- User Friendly: Simple text-based interface (no complex commands needed).
+- User Friendly: Simple text-based interface (no complex commands needed) plus one-shot commands (`/meteo`, `/prevision`) for quick lookups.
 - Robust Error Handling: Manages API timeouts, invalid city names, invalid API keys (401/403), and provider rate limits (429) gracefully.
 - Automatic retry with exponential backoff on transient network errors.
 - Per-chat rate limiting to prevent abuse and control API costs.
@@ -120,6 +121,7 @@ RATE_LIMIT_WINDOW_SECONDS=60        # sliding window size for rate limiting
 MAX_INPUT_LENGTH=60                 # max characters accepted for country/city input
 FETCH_MAX_RETRIES=3                 # retry attempts on transient network errors
 FETCH_RETRY_BACKOFF_BASE=0.5        # base delay (seconds) for exponential backoff
+FORECAST_DAYS=3                     # days covered by the /prevision command
 METRICS_LOG_INTERVAL_SECONDS=3600   # how often metrics are logged
 HEARTBEAT_FILE=/tmp/bot_heartbeat   # heartbeat file used by the Docker healthcheck
 HEARTBEAT_INTERVAL_SECONDS=30       # how often the heartbeat file is updated
@@ -142,6 +144,11 @@ How to interact with the bot:
 2. Press /start.
 3. Type a country, then a city name (e.g., France → Paris).
 4. Receive a formatted weather report instantly!
+
+Quick one-shot commands (no dialogue, work even mid-conversation):
+
+- `/meteo <city>[, <country>]` — current weather in a single message. Country is optional (e.g., `/meteo Paris, France` or just `/meteo Tokyo`).
+- `/prevision <city>[, <country>]` — forecast for the next `FORECAST_DAYS` days (3 by default).
 
 ## Docker
 

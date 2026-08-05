@@ -30,6 +30,8 @@ from weather_bot.handlers import (
     get_city_and_weather,
     cancel,
     timeout,
+    meteo_command,
+    prevision_command,
 )
 
 configure_logging()
@@ -79,6 +81,12 @@ if __name__ == "__main__":
     )
 
     app.add_handler(conv_handler)
+
+    # Commandes rapides indépendantes du dialogue pas à pas (groupe distinct
+    # pour qu'elles restent utilisables même si une conversation /start est en
+    # cours dans un autre chat/état).
+    app.add_handler(CommandHandler("meteo", meteo_command), group=1)
+    app.add_handler(CommandHandler("prevision", prevision_command), group=1)
 
     # Tâches de fond : heartbeat pour le healthcheck Docker + log périodique métriques
     if app.job_queue is not None:
