@@ -12,7 +12,7 @@ jobs:
 
     steps:
     - name: Checkout du code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Installation de Python 3.11
       uses: actions/setup-python@v7
@@ -46,7 +46,7 @@ jobs:
 
     steps:
     - name: Checkout du code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Build de l'image Docker
       uses: docker/build-push-action@v6
