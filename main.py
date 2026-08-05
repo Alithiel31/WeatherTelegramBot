@@ -1,24 +1,49 @@
+import logging
+import time
+
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
+    ContextTypes,
     MessageHandler,
     ConversationHandler,
     filters,
 )
 
-from config import (
+from weather_bot.services import metrics
+from weather_bot.config import (
     PAYS,
     VILLE,
     TELEGRAM_TOKEN,
     CONVERSATION_TIMEOUT,
+    HEARTBEAT_FILE,
+    HEARTBEAT_INTERVAL_SECONDS,
+    METRICS_LOG_INTERVAL_SECONDS,
     configure_logging,
     check_required_config,
 )
-from handlers import start, get_country, get_city_and_weather, cancel, timeout
-
-import logging
+from weather_bot.handlers import (
+    start,
+    get_country,
+    get_city_and_weather,
+    cancel,
+    timeout,
+)
 
 configure_logging()
+
+
+async def write_heartbeat(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Écrit un fichier heartbeat régulièrement, utilisé par le HEALTHCHECK Docker
+    pour vérifier que le bot répond réellement (et pas juste que le process tourne)."""
+    with open(HEARTBEAT_FILE, "w") as f:
+        f.write(str(time.time()))
+
+
+async def log_metrics(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Publie périodiquement les compteurs de métriques dans les logs."""
+    logging.info(f"📊 Statistiques : {metrics.snapshot()}")
+
 
 # --- LANCEMENT DU BOT ---
 if __name__ == "__main__":
@@ -45,6 +70,22 @@ if __name__ == "__main__":
     )
 
     app.add_handler(conv_handler)
+
+    # Tâches de fond : heartbeat pour le healthcheck Docker + log périodique métriques
+    if app.job_queue is not None:
+        app.job_queue.run_repeating(
+            write_heartbeat, interval=HEARTBEAT_INTERVAL_SECONDS, first=0
+        )
+        app.job_queue.run_repeating(
+            log_metrics,
+            interval=METRICS_LOG_INTERVAL_SECONDS,
+            first=METRICS_LOG_INTERVAL_SECONDS,
+        )
+    else:
+        logging.warning(
+            "JobQueue indisponible (extra 'job-queue' non installé) : "
+            "heartbeat et métriques périodiques désactivés."
+        )
 
     print("🤖 Le bot météo est prêt à recevoir des messages !")
     app.run_polling()

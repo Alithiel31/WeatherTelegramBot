@@ -1,8 +1,15 @@
 from telegram import Update, ReplyKeyboardRemove
 from telegram.ext import ContextTypes, ConversationHandler
 
-from config import PAYS, VILLE
-from weather_api import fetch_weather
+from weather_bot.config import PAYS, VILLE, MAX_INPUT_LENGTH
+from weather_bot.services import metrics
+from weather_bot.services.rate_limiter import is_rate_limited
+from weather_bot.services.weather_api import fetch_weather
+
+
+def _is_valid_input(text: str | None) -> bool:
+    """Vérifie qu'un texte utilisateur (pays/ville) est non vide et raisonnable."""
+    return bool(text) and 1 <= len(text.strip()) <= MAX_INPUT_LENGTH
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -15,10 +22,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_country(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Enregistre le pays et demande la ville."""
-    context.user_data["country"] = update.message.text
+    text = update.message.text
+
+    if not _is_valid_input(text):
+        await update.message.reply_text(
+            f"⚠️ Merci d'indiquer un nom de pays valide "
+            f"(1 à {MAX_INPUT_LENGTH} caractères)."
+        )
+        return PAYS
+
+    context.user_data["country"] = text
     await update.message.reply_text(
-        f"🏙️ Très bien ! Quelle ville de *{update.message.text}* "
-        f"voulez-vous consulter ?",
+        f"🏙️ Très bien ! Quelle ville de *{text}* voulez-vous consulter ?",
         parse_mode="Markdown",
     )
     return VILLE
@@ -28,6 +43,22 @@ async def get_city_and_weather(update: Update, context: ContextTypes.DEFAULT_TYP
     """Récupère la météo finale et termine la conversation."""
     city = update.message.text
     country = context.user_data.get("country")
+    chat_id = update.effective_chat.id
+
+    if not _is_valid_input(city):
+        await update.message.reply_text(
+            f"⚠️ Merci d'indiquer un nom de ville valide "
+            f"(1 à {MAX_INPUT_LENGTH} caractères)."
+        )
+        return VILLE
+
+    if is_rate_limited(chat_id):
+        metrics.increment("rate_limited")
+        await update.message.reply_text(
+            "⏳ Trop de requêtes en peu de temps. Merci de patienter un instant "
+            "avant de réessayer."
+        )
+        return ConversationHandler.END
 
     # Affiche "en train d'écrire..." dans Telegram pour l'immersion
     await context.bot.send_chat_action(

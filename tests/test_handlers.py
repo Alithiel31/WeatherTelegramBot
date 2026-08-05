@@ -1,17 +1,31 @@
 import pytest
 from telegram.ext import ConversationHandler
 
-from config import PAYS, VILLE
-from handlers import start, get_country, get_city_and_weather, cancel, timeout
+from weather_bot.config import PAYS, VILLE, RATE_LIMIT_MAX_REQUESTS
+from weather_bot.handlers import (
+    start,
+    get_country,
+    get_city_and_weather,
+    cancel,
+    timeout,
+)
+from weather_bot.services.rate_limiter import _requests
 
 
-def make_update(mocker, text=None):
+@pytest.fixture(autouse=True)
+def clear_rate_limiter():
+    _requests.clear()
+    yield
+    _requests.clear()
+
+
+def make_update(mocker, text=None, chat_id=123):
     update = mocker.Mock()
     update.message = mocker.Mock()
     update.message.text = text
     update.message.reply_text = mocker.AsyncMock()
     update.effective_chat = mocker.Mock()
-    update.effective_chat.id = 123
+    update.effective_chat.id = chat_id
     return update
 
 
@@ -48,12 +62,35 @@ async def test_get_country_stores_country_and_asks_for_city(mocker):
 
 
 @pytest.mark.asyncio
+async def test_get_country_rejects_empty_input(mocker):
+    update = make_update(mocker, text="   ")
+    context = make_context(mocker)
+
+    state = await get_country(update, context)
+
+    assert "country" not in context.user_data
+    assert state == PAYS
+
+
+@pytest.mark.asyncio
+async def test_get_country_rejects_too_long_input(mocker):
+    update = make_update(mocker, text="a" * 200)
+    context = make_context(mocker)
+
+    state = await get_country(update, context)
+
+    assert "country" not in context.user_data
+    assert state == PAYS
+
+
+@pytest.mark.asyncio
 async def test_get_city_and_weather_returns_weather_and_ends(mocker):
     update = make_update(mocker, text="Paris")
     context = make_context(mocker, user_data={"country": "France"})
 
     mocker.patch(
-        "handlers.fetch_weather", mocker.AsyncMock(return_value="🌤️ Ensoleillé")
+        "weather_bot.handlers.fetch_weather",
+        mocker.AsyncMock(return_value="🌤️ Ensoleillé"),
     )
 
     state = await get_city_and_weather(update, context)
@@ -61,6 +98,46 @@ async def test_get_city_and_weather_returns_weather_and_ends(mocker):
     context.bot.send_chat_action.assert_awaited_once()
     assert update.message.reply_text.await_count == 2
     assert state == ConversationHandler.END
+
+
+@pytest.mark.asyncio
+async def test_get_city_and_weather_rejects_invalid_input(mocker):
+    update = make_update(mocker, text="")
+    context = make_context(mocker, user_data={"country": "France"})
+
+    fetch_mock = mocker.patch(
+        "weather_bot.handlers.fetch_weather",
+        mocker.AsyncMock(return_value="🌤️ Ensoleillé"),
+    )
+
+    state = await get_city_and_weather(update, context)
+
+    fetch_mock.assert_not_awaited()
+    assert state == VILLE
+
+
+@pytest.mark.asyncio
+async def test_get_city_and_weather_blocks_after_rate_limit(mocker):
+    context = make_context(mocker, user_data={"country": "France"})
+    fetch_mock = mocker.patch(
+        "weather_bot.handlers.fetch_weather",
+        mocker.AsyncMock(return_value="🌤️ Ensoleillé"),
+    )
+
+    # Épuise le quota autorisé
+    for _ in range(RATE_LIMIT_MAX_REQUESTS):
+        update = make_update(mocker, text="Paris", chat_id=999)
+        await get_city_and_weather(update, context)
+
+    fetch_mock.reset_mock()
+
+    # La requête suivante doit être bloquée sans appeler l'API
+    blocked_update = make_update(mocker, text="Paris", chat_id=999)
+    state = await get_city_and_weather(blocked_update, context)
+
+    fetch_mock.assert_not_awaited()
+    assert state == ConversationHandler.END
+    assert "Trop de requêtes" in blocked_update.message.reply_text.call_args.args[0]
 
 
 @pytest.mark.asyncio

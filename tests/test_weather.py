@@ -1,5 +1,8 @@
+import httpx
 import pytest
-from weather_api import fetch_weather, _cache
+
+from weather_bot.services import weather_api
+from weather_bot.services.weather_api import fetch_weather, _cache
 
 
 @pytest.fixture(autouse=True)
@@ -42,6 +45,26 @@ async def test_fetch_weather_error(mocker):
 
     result = await fetch_weather("VilleInexistante", "PaysFaux")
     assert "Lieu non trouvé" in result
+
+
+@pytest.mark.asyncio
+async def test_fetch_weather_invalid_api_key(mocker):
+    mock_response = mocker.Mock()
+    mock_response.status_code = 401
+    mocker.patch("httpx.AsyncClient.get", return_value=mock_response)
+
+    result = await fetch_weather("Paris", "France")
+    assert "Configuration du service météo invalide" in result
+
+
+@pytest.mark.asyncio
+async def test_fetch_weather_rate_limited_by_provider(mocker):
+    mock_response = mocker.Mock()
+    mock_response.status_code = 429
+    mocker.patch("httpx.AsyncClient.get", return_value=mock_response)
+
+    result = await fetch_weather("Paris", "France")
+    assert "surchargé" in result
 
 
 @pytest.mark.asyncio
@@ -105,3 +128,54 @@ async def test_fetch_weather_cache_avoids_second_call(mocker):
     await fetch_weather("Paris", "France")
 
     assert mock_get.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_fetch_weather_retries_on_network_error(mocker):
+    mocker.patch("weather_bot.services.weather_api.asyncio.sleep", mocker.AsyncMock())
+    mock_get = mocker.patch(
+        "httpx.AsyncClient.get", side_effect=httpx.ConnectTimeout("timeout")
+    )
+
+    result = await fetch_weather("Paris", "France")
+
+    assert mock_get.call_count == weather_api.FETCH_MAX_RETRIES
+    assert "Impossible de contacter" in result
+
+
+@pytest.mark.asyncio
+async def test_fetch_weather_recovers_after_transient_error(mocker):
+    mocker.patch("weather_bot.services.weather_api.asyncio.sleep", mocker.AsyncMock())
+
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "location": {"name": "Paris", "country": "France"},
+        "current": {
+            "condition": {"text": "Ensoleillé"},
+            "temp_c": 20.5,
+            "humidity": 45,
+            "wind_kph": 15,
+        },
+    }
+
+    mock_get = mocker.patch(
+        "httpx.AsyncClient.get",
+        side_effect=[httpx.ConnectTimeout("timeout"), mock_response],
+    )
+
+    result = await fetch_weather("Paris", "France")
+
+    assert mock_get.call_count == 2
+    assert "Paris" in result
+
+
+@pytest.mark.asyncio
+async def test_fetch_weather_unexpected_schema(mocker):
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"unexpected": "schema"}
+    mocker.patch("httpx.AsyncClient.get", return_value=mock_response)
+
+    result = await fetch_weather("Paris", "France")
+    assert "erreur technique" in result
