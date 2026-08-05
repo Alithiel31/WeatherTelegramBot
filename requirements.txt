@@ -6,7 +6,7 @@ cachetools~=6.0.0
 flake8~=7.3.0
 black~=26.5.1
 mypy~=1.14.0
-types-cachetools~=6.0.0
+types-cachetools~=7.0.0
 
 pytest~=9.1.1
 pytest-asyncio~=1.4.0
