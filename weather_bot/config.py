@@ -35,6 +35,10 @@ METRICS_LOG_INTERVAL_SECONDS = int(os.getenv("METRICS_LOG_INTERVAL_SECONDS", "36
 HEARTBEAT_FILE = os.getenv("HEARTBEAT_FILE", "/tmp/bot_heartbeat")
 HEARTBEAT_INTERVAL_SECONDS = int(os.getenv("HEARTBEAT_INTERVAL_SECONDS", "30"))
 
+# Fichier de persistance des conversations en cours (survit aux redémarrages
+# du bot si ce chemin pointe vers un volume monté, cf. docker-compose.yml)
+PERSISTENCE_FILE = os.getenv("PERSISTENCE_FILE", "bot_persistence.pickle")
+
 # États de la machine à états de la conversation
 PAYS, VILLE = range(2)
 

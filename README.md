@@ -14,6 +14,8 @@ A lightweight, asynchronous Telegram bot built with Python that provides real-ti
 - Conversation auto-timeout to avoid stuck sessions.
 - Basic in-memory metrics (requests, cache hits, errors, rate-limited) logged periodically.
 - Docker healthcheck based on a real activity heartbeat, not just process presence.
+- Conversation state persisted to disk (survives bot restarts when the file is on a mounted volume).
+- Container runs as a non-root user.
 
 ## 🛠️ Installation & Setup
 ### 1. Prerequisites
@@ -55,6 +57,7 @@ FETCH_RETRY_BACKOFF_BASE=0.5        # base delay (seconds) for exponential backo
 METRICS_LOG_INTERVAL_SECONDS=3600   # how often metrics are logged
 HEARTBEAT_FILE=/tmp/bot_heartbeat   # heartbeat file used by the Docker healthcheck
 HEARTBEAT_INTERVAL_SECONDS=30       # how often the heartbeat file is updated
+PERSISTENCE_FILE=bot_persistence.pickle  # where in-progress conversations are saved
 ```
 
 ## 🚀 Usage
@@ -76,11 +79,17 @@ docker compose up --build -d
 
 ## 🧪 Tests & Linting
 ```bash
-pytest
+pytest                                 # runs tests + coverage (min. 90% on weather_bot/)
 black --check .
 flake8 . --max-line-length=88
 mypy --ignore-missing-imports .
 pip-audit -r requirements.txt
+```
+
+To run the same checks automatically before every commit:
+```bash
+pip install pre-commit
+pre-commit install
 ```
 
 ## 📦 Project Structure
@@ -99,10 +108,12 @@ WeatherTelegramBot/
 ├── tests/                     # Unit tests mirroring the package layout
 ├── .env                       # Environment variables (ignored by git, see .env.example)
 ├── requirements.txt           # Pinned Python dependencies
+├── pytest.ini                 # Test config: pythonpath + coverage threshold
+├── .pre-commit-config.yaml    # Local pre-commit hooks (black, flake8, mypy)
 └── .github/
     ├── workflows/ci.yml       # CI: lint, type-check, tests, dependency audit, Docker build
     └── dependabot.yml         # Automated dependency update PRs (pip, GitHub Actions, Docker)
 ```
 
 ## 📝 Technical Details
-The bot uses the `ApplicationBuilder` pattern from python-telegram-bot v20+. It includes a "typing" chat action to improve user experience while fetching data from the external API, a bounded in-memory TTL cache (`cachetools`) to reduce redundant API calls, automatic retry with exponential backoff on transient network failures, per-chat rate limiting, and a conversation timeout to automatically close inactive sessions. A background `JobQueue` job writes a heartbeat file used by the Docker `HEALTHCHECK` to confirm the bot is actually alive (not just that the process exists), and periodically logs basic usage metrics.
+The bot uses the `ApplicationBuilder` pattern from python-telegram-bot v20+. It includes a "typing" chat action to improve user experience while fetching data from the external API, a bounded in-memory TTL cache (`cachetools`) to reduce redundant API calls, automatic retry with exponential backoff on transient network failures, per-chat rate limiting, and a conversation timeout to automatically close inactive sessions. A background `JobQueue` job writes a heartbeat file used by the Docker `HEALTHCHECK` to confirm the bot is actually alive (not just that the process exists), and periodically logs basic usage metrics. Conversation state is persisted via `PicklePersistence` so an in-progress `/start` flow survives a bot restart, provided `PERSISTENCE_FILE` points to a mounted volume (see `docker-compose.yml`). The Docker image drops root privileges before running the bot.

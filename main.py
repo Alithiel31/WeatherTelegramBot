@@ -7,6 +7,7 @@ from telegram.ext import (
     ContextTypes,
     MessageHandler,
     ConversationHandler,
+    PicklePersistence,
     filters,
 )
 
@@ -19,6 +20,7 @@ from weather_bot.config import (
     HEARTBEAT_FILE,
     HEARTBEAT_INTERVAL_SECONDS,
     METRICS_LOG_INTERVAL_SECONDS,
+    PERSISTENCE_FILE,
     configure_logging,
     check_required_config,
 )
@@ -52,8 +54,13 @@ if __name__ == "__main__":
         logging.error("❌ Erreur : TOKEN ou API_KEY manquant dans le fichier .env")
         exit(1)
 
+    # Persistance : une conversation en cours (pays déjà saisi, ville en attente)
+    # survit à un redémarrage du bot si ce fichier est sur un volume monté
+    # (voir docker-compose.yml).
+    persistence = PicklePersistence(filepath=PERSISTENCE_FILE)
+
     # Création de l'application
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).persistence(persistence).build()
 
     # Configuration du tunnel de conversation
     conv_handler = ConversationHandler(
@@ -67,6 +74,8 @@ if __name__ == "__main__":
         },
         fallbacks=[CommandHandler("cancel", cancel)],
         conversation_timeout=CONVERSATION_TIMEOUT,
+        name="weather_conversation",
+        persistent=True,
     )
 
     app.add_handler(conv_handler)
