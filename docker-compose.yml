@@ -3,6 +3,8 @@ services:
     build: .
     container_name: telegram_weather_bot
     restart: unless-stopped
+    labels:
+      - "homelab.tier=app"
     env_file:
       - .env
     volumes:
